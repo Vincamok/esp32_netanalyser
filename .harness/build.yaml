@@ -1,5 +1,9 @@
 # Build image Docker du web-flasher (nginx statique, Kaniko).
-# Prérequis : pullrepo_github. Registry : 192.168.200.45:3000
+# Prérequis : pullrepo_github.
+#
+# REGISTRY_HOST doit être l'URL publique du registry Harness (FQDN sans schéma)
+# car le registry retourne un www-authenticate pointant vers ce FQDN.
+# Ne pas utiliser l'IP interne ici — Kaniko résoudrait le token endpoint en 404.
 kind: pipeline
 spec:
   stages:
@@ -16,15 +20,26 @@ spec:
               envs:
                 REGISTRY_PASSWORD: ${{ secrets.get('harness_token') }}
                 REGISTRY_USER:     ${{ secrets.get('harness_user') }}
-                REGISTRY_HOST:     "192.168.200.45:3000"
+                # FQDN public du registry Harness (même hôte que harness.vincz.fr).
+                # Le registry interne (192.168.200.45:3000) délègue son auth Bearer
+                # à harness.vincz.fr — Kaniko doit donc s'authentifier sur le FQDN.
+                REGISTRY_HOST:     "harness.vincz.fr"
                 IMAGE_BASE:        "vincamok/esp32_netanalyser"
               script: |-
                 set -eu
                 if [ -d /gitness ]; then cd /gitness; elif [ -d /harness ]; then cd /harness; else echo "ERREUR: ni /gitness ni /harness" >&2; exit 1; fi
                 echo "==> web-flasher (nginx statique)"
                 mkdir -p /kaniko/.docker
-                echo "{\"auths\":{\"$REGISTRY_HOST\":{\"username\":\"$REGISTRY_USER\",\"password\":\"$REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-                /kaniko/executor --insecure --skip-tls-verify \
-                  --context=dir://. --dockerfile=web-flasher/Dockerfile \
+
+                # Encoder les credentials en base64 pour le format "auth" Docker
+                # (évite que Kaniko tente le flow Bearer token séparément).
+                AUTH_B64=$(printf '%s:%s' "${REGISTRY_USER}" "${REGISTRY_PASSWORD}" | base64 | tr -d '\n')
+                printf '{"auths":{"%s":{"auth":"%s"}}}\n' "${REGISTRY_HOST}" "${AUTH_B64}" \
+                  > /kaniko/.docker/config.json
+
+                /kaniko/executor \
+                  --skip-tls-verify \
+                  --context=dir://. \
+                  --dockerfile=web-flasher/Dockerfile \
                   --destination=$REGISTRY_HOST/$IMAGE_BASE/flasher:latest
                 echo "==> Terminé : $REGISTRY_HOST/$IMAGE_BASE/flasher:latest"
