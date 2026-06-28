@@ -1,0 +1,30 @@
+# Build image Docker du web-flasher (nginx statique, Kaniko).
+# Prérequis : pullrepo_github. Registry : 192.168.200.45:3000
+kind: pipeline
+spec:
+  stages:
+    - name: build_flasher
+      type: ci
+      spec:
+        cloneCodebase: true
+        steps:
+          - name: push_flasher
+            type: run
+            spec:
+              container: gcr.io/kaniko-project/executor:debug
+              shell: Sh
+              envs:
+                REGISTRY_PASSWORD: ${{ secrets.get('harness_token') }}
+                REGISTRY_USER:     ${{ secrets.get('harness_user') }}
+                REGISTRY_HOST:     "192.168.200.45:3000"
+                IMAGE_BASE:        "vincamok/esp32_netanalyser"
+              script: |-
+                set -eu
+                if [ -d /gitness ]; then cd /gitness; elif [ -d /harness ]; then cd /harness; else echo "ERREUR: ni /gitness ni /harness" >&2; exit 1; fi
+                echo "==> web-flasher (nginx statique)"
+                mkdir -p /kaniko/.docker
+                echo "{\"auths\":{\"$REGISTRY_HOST\":{\"username\":\"$REGISTRY_USER\",\"password\":\"$REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+                /kaniko/executor --insecure --skip-tls-verify \
+                  --context=dir://. --dockerfile=web-flasher/Dockerfile \
+                  --destination=$REGISTRY_HOST/$IMAGE_BASE/flasher:latest
+                echo "==> Terminé : $REGISTRY_HOST/$IMAGE_BASE/flasher:latest"
