@@ -24,7 +24,7 @@ spec:
                 # Le registry interne (192.168.200.45:3000) délègue son auth Bearer
                 # à harness.vincz.fr — Kaniko doit donc s'authentifier sur le FQDN.
                 REGISTRY_HOST:     "harness.vincz.fr"
-                IMAGE_BASE:        "vincamok/esp32_netanalyser"
+                IMAGE_BASE:        "vincent/esp32_netanalyser"
               script: |-
                 set -eu
                 if [ -d /gitness ]; then cd /gitness; elif [ -d /harness ]; then cd /harness; else echo "ERREUR: ni /gitness ni /harness" >&2; exit 1; fi
