@@ -23,8 +23,8 @@ spec:
               shell: sh
               envs:
                 HARNESS_GIT_HOST: "https://harness.vincz.fr"
-                HARNESS_GIT_PATH: "git/vincamok/esp32_netanalyser"
-                HARNESS_API_REPO: "vincamok/esp32_netanalyser"
+                HARNESS_GIT_PATH: "git/vincent/esp32_netanalyser"
+                HARNESS_API_REPO: "vincent/esp32_netanalyser"
                 HARNESS_PIPELINE: "build"
 
                 HARNESS_USER:  ${{ secrets.get('harness_user') }}
