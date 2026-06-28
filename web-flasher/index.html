@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 Network Tester — Flasher</title>
+  <script
+    type="module"
+    src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
+  ></script>
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2e3347;
+      --accent:    #3b82f6;
+      --accent-h:  #2563eb;
+      --ok:        #22c55e;
+      --warn:      #f59e0b;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 0.87rem;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .variant-select {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .variant {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .variant:hover { border-color: var(--accent); }
+    .variant.selected { border-color: var(--accent); background: #1e2a47; }
+
+    .variant input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+    .variant-label { flex: 1; }
+    .variant-label strong { display: block; font-size: 0.9rem; }
+    .variant-label span { color: var(--muted); font-size: 0.8rem; }
+
+    /* ESP Web Tools install button — style override */
+    esp-web-install-button {
+      display: block;
+    }
+
+    esp-web-install-button::part(button) {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    esp-web-install-button::part(button):hover {
+      background: var(--accent-h);
+    }
+
+    esp-web-install-button[install-unsupported] {
+      display: block;
+    }
+
+    .unsupported-notice {
+      display: none;
+      background: #2d1f00;
+      border: 1px solid var(--warn);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 0.87rem;
+      color: var(--warn);
+      line-height: 1.5;
+    }
+
+    esp-web-install-button[install-unsupported] ~ .unsupported-notice {
+      display: block;
+    }
+
+    .steps {
+      counter-reset: step;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      counter-increment: step;
+      background: var(--accent);
+      color: #fff;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .step p strong { color: #fff; }
+
+    footer {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-top: 32px;
+      text-align: center;
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>⚡ ESP32 Network Tester <span class="badge">Flasher</span></h1>
+    <p>Installez le firmware sur votre ESP32-S3 directement depuis le navigateur.</p>
+  </header>
+
+  <!-- Étapes -->
+  <div class="card">
+    <h2>📋 Avant de commencer</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p>Utilisez <strong>Chrome</strong> ou <strong>Edge</strong> — Firefox ne supporte pas encore l'API Web Serial.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p>Branchez le LilyGo T-Display-S3 en mode <strong>USB</strong> sur votre PC.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p>Si c'est la première installation, maintenez le bouton <strong>BOOT</strong> enfoncé pendant la connexion USB pour entrer en mode download.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <p>Choisissez le profil hardware ci-dessous, puis cliquez sur <strong>Installer le firmware</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sélection variante + bouton flash -->
+  <div class="card">
+    <h2>🔧 Profil hardware</h2>
+    <p>Choisissez selon votre carte réseau. W5500 SPI est le choix standard.</p>
+
+    <div class="variant-select">
+      <label class="variant selected" id="var-w5500">
+        <input type="radio" name="variant" value="w5500" checked onchange="switchVariant(this)" />
+        <div class="variant-label">
+          <strong>W5500 SPI <span class="badge">Recommandé</span></strong>
+          <span>Interface Ethernet via SPI — GPIO 8-13</span>
+        </div>
+      </label>
+      <label class="variant" id="var-dp83848">
+        <input type="radio" name="variant" value="dp83848" onchange="switchVariant(this)" />
+        <div class="variant-label">
+          <strong>DP83848 RMII</strong>
+          <span>Diagnostic câble TDR activé — GPIO RMII</span>
+        </div>
+      </label>
+    </div>
+
+    <esp-web-install-button id="install-btn" manifest="manifest.json">
+    </esp-web-install-button>
+
+    <div class="unsupported-notice" style="margin-top:14px;">
+      ⚠️ Votre navigateur ne supporte pas l'API Web Serial. Utilisez <strong>Chrome</strong> ou <strong>Edge</strong> (version ≥ 89).
+    </div>
+  </div>
+
+  <!-- Note binaires -->
+  <div class="card">
+    <h2>📦 Binaires firmware</h2>
+    <p>
+      Les fichiers <code>.bin</code> doivent être compilés avec PlatformIO et placés dans
+      <code>web-flasher/bins/&lt;profil&gt;/</code> :<br><br>
+      <code>bootloader.bin</code> · <code>partitions.bin</code> · <code>boot_app0.bin</code> · <code>firmware.bin</code><br><br>
+      Script de build automatique disponible ci-dessous.
+    </p>
+    <details>
+      <summary style="cursor:pointer; color:var(--accent); font-size:0.88rem; margin-top:4px;">
+        Voir les commandes de build
+      </summary>
+      <pre style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:12px; font-size:0.82rem; overflow-x:auto; color:var(--text); line-height:1.6;">
+# W5500 SPI (profil par défaut)
+pio run -e lilygo-t-display-s3
+cp .pio/build/lilygo-t-display-s3/bootloader.bin  web-flasher/bins/lilygo-t-display-s3/
+cp .pio/build/lilygo-t-display-s3/partitions.bin  web-flasher/bins/lilygo-t-display-s3/
+cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+   web-flasher/bins/lilygo-t-display-s3/
+cp .pio/build/lilygo-t-display-s3/firmware.bin    web-flasher/bins/lilygo-t-display-s3/
+
+# DP83848 RMII
+pio run -e lilygo-t-display-s3-dp83848
+cp .pio/build/lilygo-t-display-s3-dp83848/bootloader.bin  web-flasher/bins/lilygo-t-display-s3-dp83848/
+cp .pio/build/lilygo-t-display-s3-dp83848/partitions.bin  web-flasher/bins/lilygo-t-display-s3-dp83848/
+cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+   web-flasher/bins/lilygo-t-display-s3-dp83848/
+cp .pio/build/lilygo-t-display-s3-dp83848/firmware.bin    web-flasher/bins/lilygo-t-display-s3-dp83848/
+      </pre>
+    </details>
+  </div>
+
+  <footer>
+    Propulsé par <a href="https://esphome.github.io/esp-web-tools/" target="_blank">ESP Web Tools</a> —
+    API Web Serial W3C
+  </footer>
+
+  <script>
+    const manifests = {
+      w5500:    'manifest.json',
+      dp83848:  'manifest-dp83848.json'
+    };
+
+    function switchVariant(radio) {
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('selected'));
+      radio.closest('.variant').classList.add('selected');
+      document.getElementById('install-btn').setAttribute('manifest', manifests[radio.value] || 'manifest.json');
+    }
+  </script>
+
+</body>
+</html>
