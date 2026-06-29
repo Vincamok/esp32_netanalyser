@@ -13,7 +13,7 @@
 #include "qrcode.h"
 
 // ─── LovyanGFX T-Display-S3 (ST7789) ─────────────────────────────────────────
-#ifndef ESP32_YELLOW
+#ifndef ESP32_2432S028R
 class LGFX_TDisplay : public lgfx::LGFX_Device {
     lgfx::Panel_ST7789  _panel;
     lgfx::Bus_SPI       _bus;
@@ -55,10 +55,10 @@ public:
         setPanel(&_panel);
     }
 };
-#endif // !ESP32_YELLOW
+#endif // !ESP32_2432S028R
 
-// ─── LovyanGFX ESP32 Yellow (ILI9341 2.4") ───────────────────────────────────
-#ifdef ESP32_YELLOW
+// ─── LovyanGFX ESP32-2432S028R (ILI9341 2.8") ────────────────────────────────
+#ifdef ESP32_2432S028R
 class LGFX_Yellow : public lgfx::LGFX_Device {
     lgfx::Panel_ILI9341 _panel;
     lgfx::Bus_SPI       _bus;
@@ -100,10 +100,10 @@ public:
         setPanel(&_panel);
     }
 };
-#endif // ESP32_YELLOW
+#endif // ESP32_2432S028R
 
 // ─── Globals ──────────────────────────────────────────────────────────────────
-#ifdef ESP32_YELLOW
+#ifdef ESP32_2432S028R
 static LGFX_Yellow   tft;
 #else
 static LGFX_TDisplay tft;

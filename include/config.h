@@ -4,21 +4,22 @@
 // #define USE_DP83848_RMII
 #define USE_W5500_SPI
 
-#if defined(ESP32_YELLOW)
+#if defined(ESP32_2432S028R)
 // ────────────────────────────────────────────────────────────────────────────
-// ESP32 Yellow (CYD 2.4" ILI9341) — W5500 sur HSPI (pins libres)
+// ESP32-2432S028R (CYD 2.8" ILI9341, touch résistif XPT2046)
 // ────────────────────────────────────────────────────────────────────────────
+// GPIO 4=LED_R  16=LED_G  17=LED_B — NE PAS utiliser pour W5500 !
+// GPIO 25,32,33,36,39 = XPT2046 touch — libres pour W5500 car non utilisé ici
 
-// W5500 SPI → HSPI (SPI2_HOST) pour ne pas entrer en conflit avec l'écran
+// W5500 SPI → HSPI (SPI2_HOST) — pins libres, hors LED RGB et touch
 #define ETH_MOSI    23
 #define ETH_MISO    19
 #define ETH_SCK     18
 #define ETH_CS       5
-#define ETH_INT     17
-#define ETH_RST     16
+#define ETH_INT     26   // 17 = LED_B → utiliser GPIO 26
+#define ETH_RST     27   // 16 = LED_G → utiliser GPIO 27
 
-// Écran ILI9341 → VSPI (SPI3_HOST)
-// Câblage standard CYD 2.4"
+// Écran ILI9341 → VSPI (SPI3_HOST) — câblage standard 2432S028R
 #define TFT_CS      15
 #define TFT_DC       2
 #define TFT_RST     -1
@@ -27,9 +28,9 @@
 #define TFT_MISO    12
 #define TFT_SCLK    14
 
-// Boutons : BOOT (GPIO 0) + entrée seule GPIO 35
+// Boutons : BOOT (GPIO 0) + GPIO 22 (libre, non input-only)
 #define BTN_UP       0
-#define BTN_DOWN    35
+#define BTN_DOWN    22
 
 #elif defined(USE_DP83848_RMII)
 // ────────────────────────────────────────────────────────────────────────────
