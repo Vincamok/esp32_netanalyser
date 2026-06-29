@@ -6,18 +6,8 @@
 
 #if defined(ESP32_2432S028R)
 // ────────────────────────────────────────────────────────────────────────────
-// ESP32-2432S028R (CYD 2.8" ILI9341, touch résistif XPT2046)
+// ESP32-2432S028R (CYD 2.8" ILI9341) — WiFi intégré, pas de W5500
 // ────────────────────────────────────────────────────────────────────────────
-// GPIO 4=LED_R  16=LED_G  17=LED_B — NE PAS utiliser pour W5500 !
-// GPIO 25,32,33,36,39 = XPT2046 touch — libres pour W5500 car non utilisé ici
-
-// W5500 SPI → HSPI (SPI2_HOST) — pins libres, hors LED RGB et touch
-#define ETH_MOSI    23
-#define ETH_MISO    19
-#define ETH_SCK     18
-#define ETH_CS       5
-#define ETH_INT     26   // 17 = LED_B → utiliser GPIO 26
-#define ETH_RST     27   // 16 = LED_G → utiliser GPIO 27
 
 // Écran ILI9341 → VSPI (SPI3_HOST) — câblage standard 2432S028R
 #define TFT_CS      15
@@ -31,6 +21,16 @@
 // Boutons : BOOT (GPIO 0) + GPIO 22 (libre, non input-only)
 #define BTN_UP       0
 #define BTN_DOWN    22
+
+// Credentials WiFi — à personnaliser ou surcharger via build_flags
+// (-DWIFI_SSID='"monreseau"' -DWIFI_PASSWORD='"monpass"')
+#ifndef WIFI_SSID
+#define WIFI_SSID     "SSID"
+#endif
+#ifndef WIFI_PASSWORD
+#define WIFI_PASSWORD "PASSWORD"
+#endif
+#define WIFI_TIMEOUT_MS  15000
 
 #elif defined(USE_DP83848_RMII)
 // ────────────────────────────────────────────────────────────────────────────

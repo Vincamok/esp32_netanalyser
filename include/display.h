@@ -61,6 +61,9 @@ struct NetworkInfo {
     bool     fullDuplex     = false;
     uint16_t linkSpeed      = 0;
     uint8_t  mac[6]         = {};
+    // WiFi (ESP32_2432S028R)
+    char     ssid[33]       = {};
+    int8_t   rssi           = 0;
 
     char     ipAddr[16]     = "---";
     char     subnetMask[16] = "---";

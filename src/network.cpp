@@ -1,15 +1,20 @@
 #include "network.h"
 #include "config.h"
 #include <Arduino.h>
-#include <SPI.h>
-#include <Ethernet.h>       // Ethernet2 lib for W5500
-#include <EthernetUdp.h>
 #include <HTTPClient.h>
-#include <WiFi.h>           // Pour esp_wifi_... et WiFiClient si besoin
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
 #include <lwip/icmp.h>
 #include <netdb.h>
+
+#ifdef ESP32_2432S028R
+#include <WiFi.h>
+#else
+#include <SPI.h>
+#include <Ethernet.h>
+#include <EthernetUdp.h>
+#include <WiFi.h>           // Pour WiFiClient dans testSpeed
+#endif
 
 // ─── Ping ICMP via raw socket ─────────────────────────────────────────────
 // Note: nécessite CONFIG_LWIP_IP_RAW_SOCKET=y dans sdkconfig
@@ -54,20 +59,66 @@ int32_t pingHost(const char* host, uint16_t timeoutMs) {
     return (int32_t)(millis() - t0);
 }
 
-// ─── Init W5500 via SPI ───────────────────────────────────────────────────
+// ─── Init réseau ─────────────────────────────────────────────────────────────
 #ifdef ESP32_2432S028R
-// Sur ESP32 Yellow l'écran occupe VSPI — W5500 utilise HSPI (SPI2_HOST).
-static SPIClass ethSpi(HSPI);
-#endif
 
 bool ethInit(NetworkInfo& info) {
-#ifdef ESP32_2432S028R
-    ethSpi.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
-    Ethernet.init(ETH_CS, ethSpi);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    strncpy(info.ssid, WIFI_SSID, sizeof(info.ssid) - 1);
+
+    unsigned long t0 = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < WIFI_TIMEOUT_MS) {
+        delay(200);
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        info.stEth = TestStatus::FAIL;
+        return false;
+    }
+    return true;
+}
+
+bool testEthLink(NetworkInfo& info) {
+    info.ethLinked = (WiFi.status() == WL_CONNECTED);
+    if (!info.ethLinked) {
+        info.stEth = TestStatus::FAIL;
+        return false;
+    }
+    info.rssi      = WiFi.RSSI();
+    info.linkSpeed = 0;       // N/A sur WiFi
+    info.fullDuplex = false;
+    // MAC WiFi
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    memcpy(info.mac, mac, 6);
+    info.stEth = TestStatus::OK;
+    return true;
+}
+
+bool testIpConfig(NetworkInfo& info) {
+    if (WiFi.status() != WL_CONNECTED) {
+        info.stIp = TestStatus::FAIL;
+        return false;
+    }
+    WiFi.localIP().toString().toCharArray(info.ipAddr,     sizeof(info.ipAddr));
+    WiFi.subnetMask().toString().toCharArray(info.subnetMask, sizeof(info.subnetMask));
+    WiFi.gatewayIP().toString().toCharArray(info.gateway,  sizeof(info.gateway));
+    WiFi.dnsIP(0).toString().toCharArray(info.dns1,        sizeof(info.dns1));
+    WiFi.dnsIP(1).toString().toCharArray(info.dns2,        sizeof(info.dns2));
+
+    IPAddress ip = WiFi.localIP();
+    bool apipa = (ip[0] == 169 && ip[1] == 254);
+    info.stIp = apipa ? TestStatus::WARN : TestStatus::OK;
+    return !apipa;
+}
+
 #else
+// ─── Init W5500 via SPI ───────────────────────────────────────────────────
+bool ethInit(NetworkInfo& info) {
     SPI.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
     Ethernet.init(ETH_CS);
-#endif
 
     // Reset matériel
     if (ETH_RST >= 0) {
@@ -80,22 +131,18 @@ bool ethInit(NetworkInfo& info) {
 
     // Tentative DHCP
     if (Ethernet.begin(info.mac, 8000, 4000) == 0) {
-        // Vérifier si câble branché
         if (Ethernet.linkStatus() == LinkOFF) {
             info.stEth = TestStatus::FAIL;
             return false;
         }
-        // Câble présent mais DHCP échoué → IP statique de secours
         IPAddress fallback(169, 254, 1, 1);
         IPAddress mask(255, 255, 0, 0);
         Ethernet.begin(info.mac, fallback, IPAddress(0,0,0,0), IPAddress(0,0,0,0), mask);
         info.stIp = TestStatus::WARN;
     }
-
     return true;
 }
 
-// ─── Lecture état du lien ─────────────────────────────────────────────────
 bool testEthLink(NetworkInfo& info) {
     EthernetLinkStatus ls = Ethernet.linkStatus();
     info.ethLinked = (ls != LinkOFF);
@@ -105,17 +152,9 @@ bool testEthLink(NetworkInfo& info) {
         return false;
     }
 
-    // W5500 : lire registres PHY pour duplex/vitesse
-    // PHYCFGR register 0x002E  bit6=speed(1=100M), bit3=duplex(1=full)
-    // Via Ethernet.h on accède directement au chip
     uint8_t phycfg = Ethernet.phyRead(0x002E);
     info.fullDuplex = (phycfg & 0x08) != 0;
     info.linkSpeed  = (phycfg & 0x40) ? 100 : 10;
-
-    // MAC
-    uint8_t* m = info.mac;
-    snprintf((char*)nullptr, 0, ""); // dummy
-    // Lire MAC depuis le chip W5500
     Ethernet.MACAddress(info.mac);
 
     info.stEth = TestStatus::OK;
@@ -138,11 +177,12 @@ bool testIpConfig(NetworkInfo& info) {
     gw.toString().toCharArray(info.gateway, sizeof(info.gateway));
     dns1.toString().toCharArray(info.dns1, sizeof(info.dns1));
 
-    // Détecter APIPA (169.254.x.x) → WARN
     bool apipa = (ip[0] == 169 && ip[1] == 254);
     info.stIp = apipa ? TestStatus::WARN : TestStatus::OK;
     return !apipa;
 }
+
+#endif // ESP32_2432S028R
 
 bool testGatewayPing(NetworkInfo& info) {
     if (info.stIp == TestStatus::FAIL) {
@@ -237,7 +277,11 @@ bool testSpeed(NetworkInfo& info) {
 
 // ─── Orchestrateur ───────────────────────────────────────────────────────────
 void runAllTests(NetworkInfo& info, void (*cb)(const char*, uint8_t)) {
+#ifdef ESP32_2432S028R
+    cb("Connexion WiFi...", 5);
+#else
     cb("Lien Ethernet...",  5);
+#endif
     testEthLink(info);
 
     cb("Configuration IP...", 20);
