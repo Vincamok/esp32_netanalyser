@@ -43,3 +43,39 @@ spec:
                   --dockerfile=web-flasher/Dockerfile \
                   --destination=$REGISTRY_HOST/$IMAGE_BASE/flasher:latest
                 echo "==> Terminé : $REGISTRY_HOST/$IMAGE_BASE/flasher:latest"
+          - name: redeploy_portainer
+            type: run
+            spec:
+              container: alpine/curl
+              shell: Sh
+              envs:
+                PORTAINER_URL:      "https://192.168.200.4:9443"
+                PORTAINER_TOKEN:    ${{ secrets.get('portainer_token') }}
+                PORTAINER_STACK_ID: "STACK_ID"    # ← à remplacer
+                ENDPOINT_ID:        "ENDPOINT_ID" # ← à remplacer
+              script: |-
+                set -eu
+                if [ -d /gitness ]; then cd /gitness; elif [ -d /harness ]; then cd /harness; else echo "ERREUR: ni /gitness ni /harness" >&2; exit 1; fi
+                apk add -q jq
+
+                echo "==> Récupération des env vars du stack ${PORTAINER_STACK_ID}..."
+                STACK_INFO=$(curl -sk -H "X-API-Key: ${PORTAINER_TOKEN}" \
+                  "${PORTAINER_URL}/api/stacks/${PORTAINER_STACK_ID}")
+                ENV_JSON=$(printf '%s' "$STACK_INFO" | jq -c '.Env // []')
+                echo "==> Env: $ENV_JSON"
+
+                echo "==> Construction du payload..."
+                COMPOSE_JSON=$(jq -Rs . < docker-compose.prod.yml)
+                PAYLOAD=$(jq -n \
+                  --argjson content "$COMPOSE_JSON" \
+                  --argjson env "$ENV_JSON" \
+                  '{stackFileContent: $content, env: $env, prune: false, pullImage: true}')
+
+                echo "==> Redéploiement du stack..."
+                RESULT=$(curl -sk -X PUT \
+                  -H "X-API-Key: ${PORTAINER_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  "${PORTAINER_URL}/api/stacks/${PORTAINER_STACK_ID}?endpointId=${ENDPOINT_ID}" \
+                  -d "$PAYLOAD")
+                echo "==> Résultat: $RESULT"
+                printf '%s' "$RESULT" | jq -e '.Id' > /dev/null && echo "==> SUCCESS" || { echo "==> ERREUR redeploy"; exit 1; }

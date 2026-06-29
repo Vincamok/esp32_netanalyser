@@ -1,0 +1,12 @@
+services:
+  esp32-flasher:
+    image: harness.vincz.fr/vincent/esp32_netanalyser/flasher:latest
+    restart: unless-stopped
+    # NPM accède au conteneur via le réseau npm_network.
+    # Configurer dans NPM : proxy host esp32.vincz.fr → http://esp32-flasher:80
+    networks:
+      - npm_network
+
+networks:
+  npm_network:
+    external: true
