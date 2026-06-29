@@ -4,33 +4,81 @@
 // #define USE_DP83848_RMII
 #define USE_W5500_SPI
 
-// ─── Pins SPI pour W5500
-#define ETH_MOSI    11
-#define ETH_MISO    13
-#define ETH_SCK     12
-#define ETH_CS      10
-#define ETH_INT     9
-#define ETH_RST     8
+#if defined(ESP32_YELLOW)
+// ────────────────────────────────────────────────────────────────────────────
+// ESP32 Yellow (CYD 2.4" ILI9341) — W5500 sur HSPI (pins libres)
+// ────────────────────────────────────────────────────────────────────────────
 
-// ─── Pins RMII pour DP83848 (ESP32 EMAC)
+// W5500 SPI → HSPI (SPI2_HOST) pour ne pas entrer en conflit avec l'écran
+#define ETH_MOSI    23
+#define ETH_MISO    19
+#define ETH_SCK     18
+#define ETH_CS       5
+#define ETH_INT     17
+#define ETH_RST     16
+
+// Écran ILI9341 → VSPI (SPI3_HOST)
+// Câblage standard CYD 2.4"
+#define TFT_CS      15
+#define TFT_DC       2
+#define TFT_RST     -1
+#define TFT_BL      21
+#define TFT_MOSI    13
+#define TFT_MISO    12
+#define TFT_SCLK    14
+
+// Boutons : BOOT (GPIO 0) + entrée seule GPIO 35
+#define BTN_UP       0
+#define BTN_DOWN    35
+
+#elif defined(USE_DP83848_RMII)
+// ────────────────────────────────────────────────────────────────────────────
+// DP83848 RMII (ESP32-S3 EMAC)
+// ────────────────────────────────────────────────────────────────────────────
+// (pas de pins SPI W5500 ici)
 #define ETH_MDC_PIN     23
 #define ETH_MDIO_PIN    18
-#define ETH_RMII_CLK    0
+#define ETH_RMII_CLK     0
 #define ETH_POWER_PIN   -1
 #define ETH_TYPE        ETH_PHY_DP83848
-#define ETH_ADDR        1
+#define ETH_ADDR         1
 
-// ─── Pins écran TFT (T-Display-S3)
-#define TFT_CS      6
-#define TFT_DC      7
-#define TFT_RST     5
+// Écran TFT T-Display-S3
+#define TFT_CS       6
+#define TFT_DC       7
+#define TFT_RST      5
 #define TFT_BL      38
 #define TFT_MOSI    17
 #define TFT_SCLK    18
 
-// ─── Boutons
-#define BTN_UP      0
+#define BTN_UP       0
 #define BTN_DOWN    14
+
+#else
+// ────────────────────────────────────────────────────────────────────────────
+// LilyGo T-Display-S3 + W5500 SPI (défaut)
+// ────────────────────────────────────────────────────────────────────────────
+
+// W5500 SPI
+#define ETH_MOSI    11
+#define ETH_MISO    13
+#define ETH_SCK     12
+#define ETH_CS      10
+#define ETH_INT      9
+#define ETH_RST      8
+
+// Écran ST7789 T-Display-S3
+#define TFT_CS       6
+#define TFT_DC       7
+#define TFT_RST      5
+#define TFT_BL      38
+#define TFT_MOSI    17
+#define TFT_SCLK    18
+
+#define BTN_UP       0
+#define BTN_DOWN    14
+
+#endif
 
 // ─── Tests réseau
 #define PING_HOST_1         "8.8.8.8"

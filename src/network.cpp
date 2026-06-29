@@ -55,9 +55,19 @@ int32_t pingHost(const char* host, uint16_t timeoutMs) {
 }
 
 // ─── Init W5500 via SPI ───────────────────────────────────────────────────
+#ifdef ESP32_YELLOW
+// Sur ESP32 Yellow l'écran occupe VSPI — W5500 utilise HSPI (SPI2_HOST).
+static SPIClass ethSpi(HSPI);
+#endif
+
 bool ethInit(NetworkInfo& info) {
+#ifdef ESP32_YELLOW
+    ethSpi.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
+    Ethernet.init(ETH_CS, ethSpi);
+#else
     SPI.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
     Ethernet.init(ETH_CS);
+#endif
 
     // Reset matériel
     if (ETH_RST >= 0) {
